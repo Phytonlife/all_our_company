@@ -1,0 +1,199 @@
+export type UserRole = 'founder' | 'operations' | 'agent' | 'partner';
+
+export type TaskPriority = 'P0' | 'P1' | 'P2' | 'P3';
+export type TaskImpact = 'revenue' | 'retention' | 'reputation' | 'system';
+export type TaskStatus = 
+  | 'todo' 
+  | 'in_progress' 
+  | 'waiting_approval' 
+  | 'waiting_external' 
+  | 'blocked' 
+  | 'done' 
+  | 'skipped';
+
+export interface TaskChecklistItem {
+  id?: string;
+  title: string;
+  done: boolean;
+}
+
+export interface Task {
+  id: string;
+  seedVersion?: string;
+  sourceType: 'seed' | 'manual' | 'v22';
+  dayNumber: number;
+  weekNumber: number;
+  scheduledDate: string; // YYYY-MM-DD
+  originalDeadline: string; // YYYY-MM-DD
+  dueAt?: string | null;
+  title: string;
+  description: string;
+  ownerRole: 'founder' | 'operations';
+  assistantRole?: 'founder' | 'operations' | null;
+  assigneeId?: string | null;
+  cityId: string;
+  projectId: string;
+  channelId?: string;
+  workstream: string;
+  priority: TaskPriority;
+  impact: TaskImpact;
+  status: TaskStatus;
+  estimateMinutes: number;
+  isOptional: boolean;
+  checklist: TaskChecklistItem[];
+  acceptanceCriteria: string[];
+  dependencies: string[];
+  proofUrls: string[];
+  notes: string;
+  completedAt?: string | null;
+  postponementReason?: string | null;
+  postponementHistory?: Array<{ fromDate: string; toDate: string; reason: string; timestamp: string }>;
+  blockerReason?: string | null;
+  plannedMetric?: string | null;
+  actualMetric?: string | null;
+  requiresApproval: boolean;
+  isExternalAction: boolean;
+  category?: 'growth' | 'operations' | 'engineering';
+}
+
+export type DealStage = 
+  | 'lead' 
+  | 'contact_permitted' 
+  | 'replied' 
+  | 'qualified' 
+  | 'demo_scheduled' 
+  | 'demo_completed' 
+  | 'trial' 
+  | 'invoice_sent' 
+  | 'paid' 
+  | 'activated' 
+  | 'renewed' 
+  | 'lost';
+
+export interface Deal {
+  id: string;
+  companyName: string;
+  industry: string;
+  city: string;
+  contactPerson: string;
+  phoneOrWa: string;
+  consentSource: string;
+  consentDate: string;
+  stage: DealStage;
+  owner: 'founder' | 'operations' | 'agent';
+  planName: 'Старт (9 900 ₸)' | 'Бизнес (19 900 ₸)' | 'Про (34 900 ₸)' | 'Кастом';
+  amountKZT: number;
+  setupCostKZT: number;
+  monthlyRevenueKZT: number;
+  notes: string;
+  nextActionDate: string;
+  nextActionText: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  organization: 'Atyrau Hub' | 'НПП Атамекен' | 'Фонд Даму' | 'Бизнес-клуб / Другое';
+  contactPerson: string;
+  contactChannel: string;
+  status: 'inquiry' | 'pending' | 'approved' | 'announced' | 'done' | 'cancelled';
+  tentativeDate?: string;
+  confirmedDate?: string;
+  venue: string;
+  expectedAudience: number;
+  speaker: string;
+  currentStep: number; // 1-10 wizard step
+  stepsCompleted: boolean[];
+  registrationGoal: number;
+  actualRegistrations: number;
+  actualAttendance: number;
+  demoBookings: number;
+  paidClients30d: number;
+  costKZT: number;
+  notes: string;
+  sourceUrl?: string;
+  updatedAt: string;
+}
+
+export interface Partner {
+  id: string;
+  name: string;
+  category: 
+    | 'SMM / Таргетологи'
+    | 'Веб-студии / Лендинги'
+    | 'Интеграторы 1С / CRM'
+    | 'POS / Кассовые системы'
+    | 'Бухгалтерские компании'
+    | 'Бизнес-консультанты'
+    | 'Отраслевые сообщества';
+  contactName: string;
+  phone: string;
+  status: 'lead' | 'contacted' | 'demo_done' | 'agreement_draft' | 'active_pilot' | 'inactive';
+  referralCode: string;
+  agreedCommissionPercent?: number;
+  agreedCommissionFixedKZT?: number;
+  referredDealsCount: number;
+  paidDealsCount: number;
+  totalCommissionPaidKZT: number;
+  pendingCommissionKZT: number;
+  notes: string;
+}
+
+export interface SalesAgent {
+  id: string;
+  fullName: string;
+  phone: string;
+  status: 'applicant' | 'screening' | 'training' | 'field_pilot' | 'active' | 'paused';
+  area: string;
+  trainingsCompleted: boolean;
+  fieldVisitsCount: number;
+  demosQualifiedCount: number;
+  paidClientsCount: number;
+  earnedBonusesKZT: number;
+  pendingApprovalBonusesKZT: number;
+  notes: string;
+}
+
+export interface ExpenseItem {
+  id: string;
+  date: string;
+  category: 'Реклама Meta/Insta' | 'Контент / Видео' | 'Хостинг / API / WhatsApp' | 'Комиссии партнёрам' | 'Мероприятия' | 'Юридические / Налоги' | 'Прочее';
+  amountKZT: number;
+  description: string;
+  status: 'planned' | 'approved' | 'paid';
+  approvedBy: 'founder';
+  receiptUrl?: string;
+}
+
+export interface LegalTemplate {
+  id: string;
+  title: string;
+  category: 'Клиенты SaaS' | 'Персональные данные' | 'Партнёры и Агенты' | 'Интеллектуальная собственность' | 'Корпоративные';
+  description: string;
+  lawBasis: string;
+  isDraft: boolean;
+  content: string;
+  lastUpdated: string;
+}
+
+export interface RiskItem {
+  id: string;
+  title: string;
+  category: 'Правовые' | 'Налоговые' | 'Технические / WhatsApp' | 'Финансовые' | 'Репутационные';
+  probability: 'Низкая' | 'Средняя' | 'Высокая';
+  impact: 'Низкий' | 'Средний' | 'Высокий' | 'Критический';
+  mitigationStrategy: string;
+  status: 'Активен' | 'Контролируется' | 'Снижен' | 'Закрыт';
+  owner: 'founder' | 'operations';
+}
+
+export interface PlaybookSection {
+  id: string;
+  title: string;
+  shortDescription: string;
+  category: 'Оффер и Демо' | 'Мероприятия Hub/Damu' | 'Партнёры' | 'Торговые' | 'Маркетинг и Таргет' | 'Города и Процессы';
+  markdownContent: string;
+  lastEdited: string;
+}

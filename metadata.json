@@ -1,0 +1,6 @@
+{
+  "name": "Growth OS Kazakhstan",
+  "description": "Закрытая операционная система управления для основателей B2B SaaS в Казахстане: 90-дневный план, задачи Founder & Operations, CRM, мероприятия, финансы, Company Operations и Product Engineering.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
