@@ -1,0 +1,112 @@
+export interface VerifiedResource {
+  name: string;
+  url: string;
+  address?: string;
+  phone?: string | null;
+  email?: string | null;
+  status: string;
+  note: string;
+}
+
+export const VERIFIED_RESOURCES: Record<string, VerifiedResource> = {
+  atyrau_hub: {
+    name: "Atyrau Hub — адрес и деятельность",
+    url: "https://www.gov.kz/org/atyrau-digital/documents/details/805002?lang=ru",
+    address: "Атырау, ул. К. Маденова, 7А",
+    phone: null,
+    email: null,
+    status: "verified_government",
+    note: "Официальный адрес и факт существования. Контакт координатора и свободный кабинет уточняются лично."
+  },
+  astana_hub_events: {
+    name: "Афиша Astana Hub — мероприятия",
+    url: "https://astanahub.com/ru/event/",
+    status: "official_site",
+    note: "Уточнить локальный организаторский контакт."
+  },
+  astana_hub_registration: {
+    name: "Astana Hub — вступление, документы, бизнес-план",
+    url: "https://astanahub.com/ru/registration/",
+    status: "official_site",
+    note: "Налоговые льготы зависят от применимости; офис/коворкинг отдельно."
+  },
+  atameken: {
+    name: "Палата предпринимателей Атырауской области — Атамекен",
+    url: "https://atameken.kz/business",
+    address: "Атырау, ул. Сатпаева, 78",
+    phone: "+7 (7122) 76-36-55",
+    email: "atyrau@atameken.kz",
+    status: "verified_official_sources",
+    note: "Адрес и телефон подтверждены в официальных источниках; спросить координатора отраслевого совета и условия внешнего выступления."
+  },
+  damu: {
+    name: "Фонд Даму — Атырауский региональный филиал",
+    url: "https://damu.kz/ru/obratnaya-svyaz/regional-directors/",
+    address: "Атырау, пр. Азаттык, 17",
+    phone: "+7 (7122) 55-80-91",
+    email: "Berik.Kadirov@fund.kz",
+    status: "verified_official_2026",
+    note: "Адрес и телефон из официального перечня директоров; для мастер-класса попросить контакты координатора мероприятий."
+  },
+  qazpatent: {
+    name: "Госуслуга — регистрация товарного знака",
+    url: "https://www.gov.kz/services/3258?lang=ru",
+    status: "official_government",
+    note: "Поиск по реестрам до заявки, подготовка МКТУ и проверка специалистом; ЭЦП только владелец."
+  },
+  qazpatent_search: {
+    name: "Государственные реестры Qazpatent",
+    url: "https://kazpatents.kz/ru/",
+    status: "official_site",
+    note: "Для поиска тождественных и схожих обозначений; поиск не заменяет экспертизу."
+  },
+  kaspi_pay: {
+    name: "Kaspi Pay — подключение для бизнеса",
+    url: "https://guide.kaspi.kz/partner/ru/account/opening/q1286",
+    status: "official_site",
+    note: "Подключает руководитель ИП/ТОО, сверить текущие условия."
+  },
+  kaspi_business: {
+    name: "Kaspi Pay — платежи, ссылки, удалённая оплата",
+    url: "https://kaspi.kz/kaspipay",
+    status: "official_site",
+    note: "Не обещать автоматическое выставление счетов по API без подтверждённого доступа."
+  },
+  meta_ads: {
+    name: "Meta Ads Manager — официальный учебный материал",
+    url: "https://formedia.facebookblueprint.com/student/activity/415305-get-started-with-ads-manager",
+    status: "official_site",
+    note: "Только ручное утверждение запуска и лимитов."
+  },
+  whatsapp_policy: {
+    name: "WhatsApp Business Messaging Policy",
+    url: "https://whatsappbusiness.com/policy/",
+    status: "official_site",
+    note: "Не отправлять маркетинговые сообщения без допустимого согласия; уважать отписку."
+  },
+  "2gis_terms": {
+    name: "2GIS — лицензионное соглашение",
+    url: "https://law.2gis.kz/licensing-agreement/ru",
+    status: "official_site",
+    note: "Никакой массовой выгрузки/скрейпинга без разрешения."
+  },
+  "2gis_search": {
+    name: "2GIS — справочник Атырау",
+    url: "https://2gis.kz/atyrau",
+    status: "public_directory",
+    note: "Ручное изучение отдельных компаний с соблюдением условий использования."
+  },
+  egov_brand: {
+    name: "eGov — регистрация товарного знака",
+    url: "https://egov.kz/cms/ru/services/pass00503007_mu",
+    status: "official_government",
+    note: "Данные и документы — в защищённом хранилище, не вставлять ЭЦП в Growth OS."
+  },
+  atameken_callcenter: {
+    name: "Атамекен — общая горячая линия",
+    url: "https://atameken.kz/business",
+    phone: "1432",
+    status: "official_site",
+    note: "Если региональный контакт не отвечает."
+  }
+};

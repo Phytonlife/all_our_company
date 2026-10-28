@@ -1,34 +1,35 @@
 import React, { useState } from 'react';
 import { Task, TaskStatus, TaskPriority } from '../types';
 import { StorageService } from '../services/storage';
+import { STRATEGIC_PROJECTS } from '../data/strategicProjects';
 import { 
   Calendar, CheckCircle2, Clock, Filter, AlertTriangle, 
   RotateCcw, CheckSquare, Search, ChevronRight, Layers, LayoutList, 
-  Columns3, CalendarDays, ArrowUpRight, Flame
+  Columns3, CalendarDays, ArrowUpRight, Flame, Square
 } from 'lucide-react';
+import { formatRussianDate, formatShortDate } from '../utils/dateUtils';
 
 interface RoadmapViewProps {
   tasks: Task[];
   onTasksUpdated: (updated: Task[]) => void;
   selectedRoleFilter: 'all' | 'founder' | 'operations';
+  onOpenTaskModal: (task: Task) => void;
+  initialProjectId?: string | null;
 }
 
 export const RoadmapView: React.FC<RoadmapViewProps> = ({
   tasks,
   onTasksUpdated,
-  selectedRoleFilter
+  selectedRoleFilter,
+  onOpenTaskModal,
+  initialProjectId = null
 }) => {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [selectedWeek, setSelectedWeek] = useState<number | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'growth' | 'operations' | 'engineering'>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | 'all'>(initialProjectId || 'all');
   
-  // Postpone modal state
-  const [activeTaskForPostpone, setActiveTaskForPostpone] = useState<Task | null>(null);
-  const [newPostponeDate, setNewPostponeDate] = useState<string>('');
-  const [postponeReason, setPostponeReason] = useState<string>('');
-
   // Filtering logic
   const filteredTasks = tasks.filter(task => {
     // Role filter
@@ -40,14 +41,19 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({
       return false;
     }
     // Status filter
-    if (statusFilter === 'todo' && task.status !== 'todo') return false;
-    if (statusFilter === 'done' && task.status !== 'done') return false;
-    if (statusFilter === 'blocked' && task.status !== 'blocked') return false;
-    // Category filter
-    if (categoryFilter !== 'all') {
-      if (categoryFilter === 'operations' && task.category !== 'operations' && task.projectId !== 'company_ops') return false;
-      if (categoryFilter === 'engineering' && task.category !== 'engineering' && task.projectId !== 'product_eng') return false;
-      if (categoryFilter === 'growth' && (task.category === 'operations' || task.category === 'engineering')) return false;
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'todo' && task.status !== 'todo') return false;
+      if (statusFilter === 'in_progress' && task.status !== 'in_progress') return false;
+      if (statusFilter === 'waiting_external' && task.status !== 'waiting_external') return false;
+      if (statusFilter === 'blocked' && task.status !== 'blocked') return false;
+      if (statusFilter === 'done' && task.status !== 'done') return false;
+    }
+    // Project filter
+    if (selectedProjectId !== 'all') {
+      const proj = STRATEGIC_PROJECTS.find(p => p.id === selectedProjectId);
+      if (proj && !proj.projectIds.includes(task.projectId)) {
+        return false;
+      }
     }
     // Search filter
     if (searchQuery.trim()) {
@@ -61,428 +67,275 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({
 
   const totalTasksCount = tasks.length;
   const doneTasksCount = tasks.filter(t => t.status === 'done').length;
-  const completionPercent = Math.round((doneTasksCount / totalTasksCount) * 100);
-
-  const handleToggleTaskStatus = (task: Task) => {
-    const nextStatus = task.status === 'done' ? 'todo' : 'done';
-    const updated = StorageService.updateTask(task.id, { status: nextStatus });
-    onTasksUpdated(updated);
-  };
-
-  const handleOpenPostpone = (task: Task) => {
-    setActiveTaskForPostpone(task);
-    const curr = new Date(task.scheduledDate);
-    curr.setDate(curr.getDate() + 1);
-    setNewPostponeDate(curr.toISOString().slice(0, 10));
-    setPostponeReason(task.postponementReason || '');
-  };
-
-  const handleConfirmPostpone = () => {
-    if (!activeTaskForPostpone) return;
-    if (!postponeReason.trim()) {
-      alert("Укажите причину переноса для сохранения истории.");
-      return;
-    }
-    const updated = StorageService.postponeTask(activeTaskForPostpone.id, newPostponeDate, postponeReason);
-    onTasksUpdated(updated);
-    setActiveTaskForPostpone(null);
-  };
+  const completionPercent = totalTasksCount > 0 ? Math.round((doneTasksCount / totalTasksCount) * 100) : 0;
 
   return (
-    <div className="space-y-5 pb-16">
+    <div className="space-y-5 pb-20">
       
       {/* 90-Day Header Card */}
-      <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 p-4 sm:p-5 shadow-sm">
+      <div className="rounded-2xl bg-gradient-to-br from-[#111a2b] via-[#142138] to-[#0c1322] border border-slate-700/80 p-4 sm:p-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-indigo-400">
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
               <Calendar className="w-3.5 h-3.5" />
               <span>90-дневный стратегический план • 28.10.2026 – 25.01.2027</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white mt-1">
-              Дорожная карта масштабирования
+              Проекты и дорожная карта (237 задач)
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Всего 237 задач (188 базовых + 49 модулей Company Ops & Product Engineering). Без фальшивых 100%.
+            <p className="text-xs sm:text-sm text-slate-300 mt-0.5">
+              Все 237 задач обогащены подробными пошаговыми инструкциями, контактами и примерами.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-xl sm:text-2xl font-extrabold text-white font-mono tabular-nums">
-                {doneTasksCount} <span className="text-slate-500 font-normal text-sm">/ {totalTasksCount}</span>
-              </div>
-              <div className="text-xs text-indigo-400 font-medium">{completionPercent}% выполнено</div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* View Mode Toggle */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-800/90 border border-slate-700">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                  viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Список</span>
+              </button>
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`p-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                  viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Columns3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Канбан</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Milestone Milestones Progress Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-800">
-          <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">День 1–14</div>
-            <div className="text-xs font-medium text-slate-200 mt-0.5 line-clamp-1">Запуск, демо, CRM и офферы</div>
-            <div className="text-[11px] text-slate-400 mt-1">Недели 1–2</div>
+        {/* Global Progress Strip */}
+        <div className="mt-4 pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-slate-400">Всего закрыто:</span>
+            <span className="font-bold text-white text-sm">{doneTasksCount} из {totalTasksCount} задач ({completionPercent}%)</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-purple-400">День 15–30</div>
-            <div className="text-xs font-medium text-slate-200 mt-0.5 line-clamp-1">Первые платящие клиенты</div>
-            <div className="text-[11px] text-slate-400 mt-1">Недели 3–5</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-400">День 31–60</div>
-            <div className="text-xs font-medium text-slate-200 mt-0.5 line-clamp-1">Полевые агенты и B2B партнеры</div>
-            <div className="text-[11px] text-slate-400 mt-1">Недели 5–9</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">День 61–90</div>
-            <div className="text-xs font-medium text-slate-200 mt-0.5 line-clamp-1">Юнит-экономика и новые города</div>
-            <div className="text-[11px] text-slate-400 mt-1">Недели 9–13</div>
+          <div className="w-full sm:w-64 bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div 
+              className="bg-blue-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${completionPercent}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Filter and View Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-3 rounded-2xl">
-        
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Поиск по задачам, темам..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs sm:text-sm bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-          />
-        </div>
-
-        {/* Filter Badges & Toggle */}
-        <div className="flex flex-wrap items-center gap-2">
-          
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as any)}
-            className="text-xs bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
-          >
-            <option value="all">Все направления</option>
-            <option value="growth">Маркетинг & Продажи</option>
-            <option value="operations">Company Operations (v2.2)</option>
-            <option value="engineering">Product Engineering (v2.2)</option>
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
-          >
-            <option value="all">Все статусы</option>
-            <option value="todo">К выполнению</option>
-            <option value="done">Выполненные</option>
-            <option value="blocked">Заблокированные</option>
-          </select>
-
-          {/* View Mode Switcher (List vs Kanban) */}
-          <div className="flex items-center p-0.5 rounded-lg bg-slate-800 border border-slate-700">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
-              title="Список / таймлайн"
-            >
-              <LayoutList className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-1.5 rounded-md transition ${viewMode === 'kanban' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
-              title="Канбан доска"
-            >
-              <Columns3 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Weeks Filter Carousel */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-        <button
-          onClick={() => setSelectedWeek('all')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${
-            selectedWeek === 'all'
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
-          }`}
-        >
-          Все недели
-        </button>
-        {Array.from({ length: 13 }, (_, i) => i + 1).map(week => (
+      {/* Filters Bar: Project, Week, Status, Search */}
+      <div className="p-3 sm:p-4 bg-slate-900/90 border border-slate-700/80 rounded-2xl space-y-3">
+        {/* Project Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
           <button
-            key={week}
-            onClick={() => setSelectedWeek(week)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${
-              selectedWeek === week
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+            onClick={() => setSelectedProjectId('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+              selectedProjectId === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            Неделя {week}
+            Все направления (12)
           </button>
-        ))}
+          {STRATEGIC_PROJECTS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedProjectId(p.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                selectedProjectId === p.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              {p.shortName}
+            </button>
+          ))}
+        </div>
+
+        {/* Search & Week & Status */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Поиск по задачам, шагам или проектам..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full text-xs bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="p-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white"
+          >
+            <option value="all">Все статусы</option>
+            <option value="todo">Не начато</option>
+            <option value="in_progress">В работе</option>
+            <option value="waiting_external">Ждём ответ</option>
+            <option value="blocked">Заблокировано</option>
+            <option value="done">Выполнено</option>
+          </select>
+
+          <select
+            value={selectedWeek}
+            onChange={e => setSelectedWeek(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            className="p-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white"
+          >
+            <option value="all">Все недели (1–13)</option>
+            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => (
+              <option key={w} value={w}>Неделя {w}</option>
+            ))}
+          </select>
+
+          <span className="text-xs text-slate-400 ml-auto">
+            Найдено: <strong className="text-white">{filteredTasks.length}</strong>
+          </span>
+        </div>
       </div>
 
-      {/* Task Content: LIST VIEW */}
-      {viewMode === 'list' && (
-        <div className="space-y-3">
+      {/* Main Content: List or Kanban */}
+      {viewMode === 'list' ? (
+        <div className="space-y-2.5">
           {filteredTasks.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl border border-slate-800 bg-slate-900/40 text-slate-400 text-xs">
-              Задач с выбранными фильтрами не найдено.
+            <div className="p-8 text-center bg-slate-900/60 border border-slate-800 rounded-2xl text-xs text-slate-400">
+              По выбранным фильтрам задач не найдено.
             </div>
           ) : (
             filteredTasks.map(task => {
-              const isDone = task.status === 'done';
-              const isBlocked = task.status === 'blocked';
-              const roleBadgeColor = task.ownerRole === 'founder' 
-                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
-                : 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+              const checklist = task.guidedChecklist || task.checklist;
+              const stepDone = checklist ? checklist.filter(c => c.done).length : 0;
+              const stepTotal = checklist ? checklist.length : 0;
 
               return (
-                <div 
+                <div
                   key={task.id}
-                  className={`rounded-2xl border p-4 transition ${
-                    isDone 
-                      ? 'bg-slate-900/40 border-slate-800/60 opacity-80' 
-                      : isBlocked
-                      ? 'bg-amber-950/10 border-amber-800/40'
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                  onClick={() => onOpenTaskModal(task)}
+                  className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    task.status === 'done'
+                      ? 'bg-emerald-950/15 border-emerald-500/30 text-slate-300'
+                      : task.status === 'waiting_external'
+                      ? 'bg-amber-950/20 border-amber-500/30 text-white'
+                      : task.status === 'blocked'
+                      ? 'bg-rose-950/20 border-rose-500/30 text-white'
+                      : 'bg-slate-900/80 border-slate-700/80 hover:border-slate-600 text-white'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1.5 flex-1">
-                      
-                      {/* Metadata */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${roleBadgeColor}`}>
-                          {task.ownerRole === 'founder' ? 'Founder' : 'Operations'}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        task.ownerRole === 'founder'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                          : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      }`}>
+                        {task.ownerRole === 'founder' ? 'Основатель' : 'Супруга'}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        День {task.dayNumber} ({formatShortDate(task.scheduledDate)})
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        · {task.workstream}
+                      </span>
+                      {stepTotal > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-300">
+                          · {stepDone}/{stepTotal} шагов
                         </span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-slate-400 font-mono">День {task.dayNumber}</span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-slate-400 font-mono">{task.scheduledDate}</span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-slate-400">~{task.estimateMinutes} мин</span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-slate-400">{task.workstream}</span>
-                        <span className="text-slate-500">·</span>
-                        <span className={`text-[11px] font-bold ${task.priority === 'P0' ? 'text-rose-400' : 'text-slate-400'}`}>
-                          {task.priority}
-                        </span>
-                      </div>
-
-                      <h3 className={`text-base font-semibold ${isDone ? 'line-through text-slate-400' : 'text-white'}`}>
-                        {task.title}
-                      </h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        {task.description}
-                      </p>
-
-                      {/* Blocker alert if present */}
-                      {isBlocked && (
-                        <div className="text-xs text-amber-400 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20 mt-2 flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                          <span>Блокер: {task.blockerReason || 'Ожидает решения'}</span>
-                        </div>
                       )}
-
-                      {/* Postponement notice if postponed */}
-                      {task.postponementReason && (
-                        <div className="text-xs text-indigo-400 bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20 mt-1 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 shrink-0" />
-                          <span>Перенесено с {task.originalDeadline}. Причина: {task.postponementReason}</span>
-                        </div>
+                      {task.status === 'done' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                          ✓ Готово
+                        </span>
+                      )}
+                      {task.status === 'waiting_external' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300">
+                          ⏳ Ждём ответ
+                        </span>
+                      )}
+                      {task.status === 'blocked' && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300">
+                          ✕ Блокер
+                        </span>
                       )}
                     </div>
 
-                    {/* Quick Mark Complete Button */}
-                    <button
-                      onClick={() => handleToggleTaskStatus(task)}
-                      className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl transition ${
-                        isDone 
-                          ? 'text-emerald-400 hover:text-slate-400' 
-                          : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-800'
-                      }`}
-                      title={isDone ? 'Снять отметку' : 'Отметить сделанным'}
-                    >
-                      <CheckCircle2 className="w-6 h-6" />
-                    </button>
+                    <h3 className={`text-sm sm:text-base font-bold leading-snug ${
+                      task.status === 'done' ? 'line-through text-slate-400' : 'text-white'
+                    }`}>
+                      {task.title}
+                    </h3>
+
+                    {task.guide?.why && (
+                      <p className="text-xs text-slate-300 mt-1 line-clamp-1">
+                        {task.guide.why}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Actions Bar */}
-                  <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenPostpone(task)}
-                        className="hover:text-indigo-400 flex items-center gap-1 transition"
-                      >
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Перенести</span>
-                      </button>
-                      <span className="text-slate-700">|</span>
-                      <span>Критерии: {task.acceptanceCriteria.length}</span>
-                    </div>
-
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      id: {task.id}
-                    </span>
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenTaskModal(task);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center gap-1"
+                    >
+                      <span>Инструкция</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
             })
           )}
         </div>
-      )}
-
-      {/* Task Content: KANBAN VIEW */}
-      {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
-          {/* Column: To Do */}
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-3 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold px-1 text-slate-400">
-              <span>К выполнению</span>
-              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-                {filteredTasks.filter(t => t.status === 'todo').length}
-              </span>
-            </div>
-            <div className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
-              {filteredTasks.filter(t => t.status === 'todo').map(task => (
-                <div key={task.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 space-y-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className={`px-1.5 py-0.2 rounded font-semibold ${task.ownerRole === 'founder' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-purple-500/10 text-purple-400'}`}>
-                      {task.ownerRole === 'founder' ? 'Founder' : 'Operations'}
-                    </span>
-                    <span className="text-slate-400 font-mono">{task.scheduledDate}</span>
-                  </div>
-                  <h4 className="text-xs font-semibold text-white line-clamp-2">{task.title}</h4>
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px]">
-                    <span className="text-slate-500">~{task.estimateMinutes} мин</span>
-                    <button
-                      onClick={() => handleToggleTaskStatus(task)}
-                      className="text-xs text-indigo-400 hover:text-emerald-400 font-medium"
-                    >
-                      Сделано →
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Column: Blocked / Waiting */}
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-3 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold px-1 text-amber-400">
-              <span>Блокировано / Ожидание</span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono">
-                {filteredTasks.filter(t => t.status === 'blocked').length}
-              </span>
-            </div>
-            <div className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
-              {filteredTasks.filter(t => t.status === 'blocked').map(task => (
-                <div key={task.id} className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/40 space-y-2">
-                  <span className="text-[11px] font-semibold text-amber-400">
-                    {task.blockerReason || 'Блокер'}
+      ) : (
+        /* Kanban View */
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 overflow-x-auto pb-4">
+          {[
+            { id: 'todo', title: 'Не начато', color: 'border-slate-700 bg-slate-900/60' },
+            { id: 'in_progress', title: 'В работе', color: 'border-indigo-800/40 bg-indigo-950/20' },
+            { id: 'waiting_external', title: 'Ждём ответ', color: 'border-amber-800/40 bg-amber-950/20' },
+            { id: 'done', title: 'Выполнено', color: 'border-emerald-800/40 bg-emerald-950/20' }
+          ].map(col => {
+            const colTasks = filteredTasks.filter(t => t.status === col.id);
+            return (
+              <div key={col.id} className={`rounded-2xl border p-3 flex flex-col min-h-[300px] ${col.color}`}>
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-800 text-xs font-bold text-white">
+                  <span>{col.title}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+                    {colTasks.length}
                   </span>
-                  <h4 className="text-xs font-semibold text-white">{task.title}</h4>
-                  <button
-                    onClick={() => handleToggleTaskStatus(task)}
-                    className="w-full text-center py-1 text-xs text-amber-300 hover:text-white bg-amber-600/20 rounded-lg transition"
-                  >
-                    Разблокировать / Сделано
-                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Column: Done */}
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-3 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold px-1 text-emerald-400">
-              <span>Выполнено</span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
-                {filteredTasks.filter(t => t.status === 'done').length}
-              </span>
-            </div>
-            <div className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
-              {filteredTasks.filter(t => t.status === 'done').map(task => (
-                <div key={task.id} className="p-3 rounded-xl bg-slate-900/40 border border-slate-800 opacity-80 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="line-through">{task.title}</span>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  </div>
-                  <div className="text-[10px] text-emerald-400">
-                    {task.actualMetric || 'Завершено'}
-                  </div>
+                <div className="space-y-2 flex-1">
+                  {colTasks.slice(0, 15).map(task => (
+                    <div
+                      key={task.id}
+                      onClick={() => onOpenTaskModal(task)}
+                      className="p-3 bg-slate-900/90 border border-slate-700/80 hover:border-blue-500 rounded-xl cursor-pointer transition shadow-sm space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span className={task.ownerRole === 'founder' ? 'text-blue-400 font-semibold' : 'text-purple-400 font-semibold'}>
+                          {task.ownerRole === 'founder' ? 'Основатель' : 'Супруга'}
+                        </span>
+                        <span>День {task.dayNumber}</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-white line-clamp-2">
+                        {task.title}
+                      </h4>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {/* Postpone Modal */}
-      {activeTaskForPostpone && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl text-slate-100">
-            <h3 className="text-base font-semibold text-white mb-2 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-400" />
-              Перенос задачи в 90-дневном плане
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Исходный срок: <strong className="text-white">{activeTaskForPostpone.originalDeadline}</strong>
-            </p>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-300">Новая дата выполнения:</label>
-                <input
-                  type="date"
-                  value={newPostponeDate}
-                  onChange={(e) => setNewPostponeDate(e.target.value)}
-                  className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-300">Причина переноса (для аудита):</label>
-                <textarea
-                  value={postponeReason}
-                  onChange={(e) => setPostponeReason(e.target.value)}
-                  rows={2}
-                  placeholder="Опишите обоснование переноса..."
-                  className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button
-                onClick={() => setActiveTaskForPostpone(null)}
-                className="px-4 py-2 text-xs text-slate-400 hover:text-white"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleConfirmPostpone}
-                className="px-5 py-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition"
-              >
-                Подтвердить перенос
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
